@@ -1,1 +1,25 @@
-# example  
+# LigandDesigner - HomeLab Configuration
+
+system:
+  mode: "homelab"            # Tryb działania: homelab
+  output_dir: "./results"    # Katalog wyjściowy dla wyników
+
+resources:
+  use_gpu: false             # Czy używać GPU (false = CPU)
+  max_threads: 4             # Maksymalna liczba wątków CPU
+  memory_limit: "8GB"        # Limit pamięci RAM (opcjonalne)
+
+binding_site_analysis:
+  pharmacophore_model: "default"  # Model farmakoforu (default/custom)
+  input_file: "./data/target.pdb" # Plik wejściowy z danymi PDB
+
+ligand_generation:
+  conformer_count: 1000       # Liczba generowanych konformerów
+  optimization: "rdkit"       # Narzędzie optymalizacyjne: rdkit
+  molecular_constraints:      # Ograniczenia dla ligandów
+    - "Lipinski"              # Reguła Lipińskiego
+    - "Veber"
+
+ligand_validation:
+  chemical_checks: true       # Czy sprawdzać poprawność chemiczną
+  toxicity_prediction: false  # Czy uruchamiać predykcję toksyczności
