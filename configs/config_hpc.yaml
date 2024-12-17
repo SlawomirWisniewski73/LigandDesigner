@@ -1,0 +1,31 @@
+# LigandDesigner - HPC Configuration
+
+system:
+  mode: "hpc"                 # Tryb działania: HPC
+  output_dir: "./results"     # Katalog wyjściowy dla wyników
+
+resources:
+  use_gpu: true               # Czy używać GPU
+  gpu_count: 8                # Liczba dostępnych GPU
+  nodes: 2                    # Liczba węzłów obliczeniowych
+  communication_backend: "nccl"  # Backend komunikacji GPU (NCCL dla CUDA)
+
+binding_site_analysis:
+  pharmacophore_model: "advanced" # Zaawansowany model farmakoforu
+  input_file: "./data/target.pdb" # Plik wejściowy z danymi PDB
+  md_simulation: true             # Czy uruchomić symulację MD
+  md_steps: 50000                 # Liczba kroków symulacji MD
+
+ligand_generation:
+  model_type: "GAN"           # Typ modelu generatywnego: GAN/LSTM
+  batch_size: 512             # Rozmiar wsadu dla uczenia
+  epochs: 100                 # Liczba epok treningowych
+  molecular_constraints:      # Ograniczenia dla ligandów
+    - "Lipinski"              # Reguła Lipińskiego
+    - "Veber"
+    - "Custom"                # Opcjonalne dodatkowe ograniczenia
+
+ligand_validation:
+  chemical_checks: true       # Sprawdzenie poprawności chemicznej
+  toxicity_prediction: true   # Predykcja toksyczności
+  high_throughput: true       # Analiza wysokoprzepustowa wyników
