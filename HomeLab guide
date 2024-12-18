@@ -1,0 +1,235 @@
+# LigandDesigner installation guide for home lab
+
+## Table of Contents
+1. environment preparation
+2. basic installation
+3. installation with GPU support
+4. installation on computing clusters
+5. installation verification
+6 Troubleshooting
+7. additional configurations
+
+## 1. Environment preparation
+
+### System requirements
+
+Before starting the installation, make sure that your system meets the minimum requirements:
+
+**Minimum requirements:**.
+- CPU: 4 cores
+- RAM: 8 GB
+- Disk: 20 GB of free space
+- Operating system: Linux (Ubuntu 20.04+ recommended), macOS (10.15+), or Windows 10/11
+
+**Recommended requirements:**.
+- CPU: 8+ cores
+- RAM: 16+ GB
+- GPU: NVIDIA with min. 8GB of memory
+- SSD: 50+ GB of free space
+
+### System preparation
+
+**Linux (Ubuntu/Debian):**.
+``bash
+# System upgrade
+sudo apt update && sudo apt upgrade -y
+
+# Installing the required system packages
+sudo apt install -y build-essential cmake wget curl git python3-dev python3-pip
+sudo apt install -y libopenblas-dev liblapack-dev
+
+# For GPU support
+sudo apt install -y nvidia-driver-525 nvidia-cuda-toolkit
+```
+
+**macOS:**
+``bash
+# Install Homebrew if not installed
+/bin/bash -c “$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)”
+
+# Installation of required packages
+brew install cmake python@3.8 openblas lapack
+```
+
+**Windows:**.
+1 Install Visual Studio Build Tools 2019
+2. install CUDA Toolkit (for GPU)
+3. install Git for Windows
+4. install Python 3.8+ from python.org website
+
+## 2. Basic installation
+
+### Create and activate the virtual environment.
+
+``bash
+## Create a project directory
+mkdir ligand_designer
+cd ligand_designer
+
+# Create the virtual environment
+python3 -m venv venv
+
+# Activate the environment
+# Linux/macOS:
+source venv/bin/activate
+# Windows:
+venv/cripts/activate
+
+# Upgrade pip
+python -m pip install --upgrade pip setuptools wheel
+```
+
+### Installing the package
+
+``bash
+# Cloning the repository
+git clone https://github.com/username/ligand_designer.git
+cd ligand_designer
+
+# Installing base dependencies
+pip install -r requirements/base.txt
+
+# Installing the package in development mode
+pip install -e .
+```
+
+## 3. Installation with GPU support
+
+### Checking GPU compatibility
+
+Before installing the GPU version, check the compatibility of your graphics card:
+
+``bash
+# Linux:
+nvidia-smi
+
+## Check CUDA version:
+nvcc --version
+```
+
+### Installing CUDA and cuDNN
+
+1. download and install the CUDA Toolkit from the NVIDIA website
+2. download and install cuDNN appropriate for your version of CUDA
+3. add CUDA paths to environment variables:
+
+``bash
+# Linux - add to ~/.bashrc:
+export PATH=/usr/local/cuda/bin:$PATH
+export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+
+# Windows - add to environment variables:
+CUDA_PATH=C:³³³³ Program Files³³³VIDIA GPU Computing Toolkit³³³CUDA³³³v11.x
+PATH+=%CUDA_PATH%%.
+```
+
+### Installing GPU dependencies
+
+``bash
+## install PyTorch with CUDA support.
+pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu116
+
+# Installing the remaining GPU dependencies
+pip install -r requirements/gpu.txt
+```
+
+## 4 Verify the installation
+
+### Test the basic functionality
+
+```python
+# Run python and execute:
+from ligand_designer import verify_installation
+
+# Verify installation
+verify_installation()
+
+# GPU test (if installed)
+verify_installation(check_gpu=True)
+```
+
+### Run the tests
+
+```bash
+# Running all tests
+python -m pytest tests/
+
+# Running the GPU tests
+python -m pytest tests/gpu/
+```
+
+## 5 Troubleshooting
+
+### Problems with CUDA
+
+If there are GPU problems:
+
+1. check CUDA versions:
+``bash
+python -c “import torch; print(torch.version.cuda)”
+nvidia-smi
+```
+
+2. if the versions do not match, reinstall PyTorch with the correct CUDA version:
+``bash
+pip uninstall torch torchvision torchaudio
+pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu116
+```
+
+### Dependency problems
+
+If there are dependency conflicts:
+
+1. clean up the environment:
+``bash
+pip uninstall -y -r <(pip freeze).
+```
+
+2. reinstall with the specified versions:
+``bash
+pip install -r requirements/frozen_versions.txt
+```
+
+## 6. Additional configurations
+
+### Configure the computing environment.
+
+Create a configuration file `config.yaml`:
+
+``yaml
+compute:
+  device: “cuda”  # or “cpu”
+  num_workers: 4
+  batch_size: 32
+  
+models:
+  lstm:
+    hidden_size: 256
+  gan:
+    latent_dim: 100
+    
+training:
+  epochs: 100
+  learning_rate: 0.001
+```
+
+### logging configuration
+
+``python
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('ligand_designer.log'),
+        logging.StreamHandler()
+    ]
+)
+```
+
+## 7. Next steps
+
+In case of problems:
+1. check the documentation
+2. create Issue on GitHub
