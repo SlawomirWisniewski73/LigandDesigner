@@ -1,0 +1,231 @@
+# LigandDesigner configuration guide for compute clusters
+
+## Introduction
+
+The LigandDesigner system is designed to efficiently utilize the resources of computing clusters. This guide will show you how to configure the system for various HPC (High-Performance Computing) environments and optimize its performance.
+
+## Supported queuing systems
+
+The system has been provided for the following queuing systems:
+- SLURM (Simple Linux Utility for Resource Management)
+- PBS (Portable Batch System)
+- LSF (Load Sharing Facility)
+- SGE (Sun Grid Engine)
+
+## 1. Configuration for SLURM
+
+### Basic startup script (submit_slurm.sh):
+
+``bash
+#!/bin/bash
+#SBATCH --job-name=ligand_design
+#SBATCH --output=logs/ligand_%j.out
+#SBATCH --error=logs/ligand_%j.err
+#SBATCH --time=24:00:00
+#SBATCH --nodes=2
+#SBATCH --ntasks-per-node=4
+#SBATCH --gres=gpu:4
+#SBATCH --mem=64G
+#SBATCH --partition=gpu
+
+# loading modules
+module purge
+module load cuda/11.6
+module load python/3.8
+module load openmpi/4.1
+
+# Activate the environment
+source /path/to/venv/bin/activate
+
+# Set environment variables
+export MASTER_PORT=29500
+export MASTER_ADDR=$(scontrol show hostname $SLURM_NODELIST | head -n 1)
+export WORLD_SIZE=$SLURM_NTASKS
+export LOCAL_RANK=$SLURM_LOCALID
+export RANK=$SLURM_PROCID
+
+# Run the script
+srun python -m torch.distributed.launch }
+    --nproc_per_node=4 }
+    --nnodes=$SLURM_NNODES }
+    --node_rank=$SLURM_NODEID }
+    --master_addr=$MASTER_ADDR }
+    --master_port=$MASTER_PORT }
+    train_distributed.py }
+    --config configs/cluster_config.yaml
+```
+
+### SLURM configuration (cluster_config.yaml):
+
+`` yaml
+slurm:
+  partition: “gpu”
+  nodes: 2
+  tasks_per_node: 4
+  gpus_per_node: 4
+  memory: “64G”
+  time: “24:00:00”
+  
+training:
+  batch_size: 256 # on GPU
+  gradient_accumulation: 4
+  mixed_precision: true
+  
+optimization:
+  distributed_strategy: “ddp”  # distributedDataParallel
+  node_communication: “nccl”
+  
+checkpointing:
+  save_frequency: 1000
+  path: “/scratch/checkpoints”
+```
+
+## 2 Configuration for PBS
+
+### PBS script (submit_pbs.sh):
+
+``bash
+#!/bin/bash
+#PBS -N ligand_design
+#PBS -l select=2:ncpus=4:ngpus=4:mem=64gb
+#PBS -l walltime=24:00:00
+#PBS -q gpu_queue
+#PBS -j oe
+#PBS -o logs/ligand_${PBS_JOBID}.log
+
+# Move to the project directory
+cd $PBS_O_WORKDIR
+
+# Loading modules
+module purge
+module load cuda/11.6
+module load python/3.8
+module load mpi/openmpi-4.1
+
+# Configure the distributed environment
+export MASTER_ADDR=$(head -n 1 $PBS_NODEFILE)
+export MASTER_PORT=29500
+export WORLD_SIZE=$(wc -l < $PBS_NODEFILE)
+export NODE_RANK=$PBS_VNODENUM
+
+# Start training
+mpirun -np $WORLD_SIZE python train_distributed.py }
+    --config configs/pbs_config.yaml
+```
+
+## 3. Performance optimization
+
+### GPU memory management
+
+```python
+# train_distributed.py
+
+import torch
+from torch.cuda.amp import autocast, GradScaler
+
+class DistributedTrainer:
+    def __init__(self, config):
+        self.scaler = GradScaler() # for mixed-precision calculations
+        self.config = config
+        
+    def train_step(self, batch):
+        with autocast():  # use of float16 tensors
+            loss = self.model(batch)
+            
+        self.scaler.scale(loss).backward()
+        self.scaler.step(self.optimizer)
+        self.scaler.update()
+        
+    def optimize_memory(self):
+        # Clean up cache memory
+        torch.cuda.empty_cache()
+        
+        # Optimizing memory allocation
+        torch.cuda.set_per_process_memory_fraction(0.9)
+        
+        # Prefetching data
+        self.dataloader = self._create_prefetch_dataloader()
+```
+
+### Optimizing communication between nodes
+
+```python
+def setup_distributed_training(config):
+    ““”Configure distributed environment with communication optimization"”
+    
+    # Initialization of the group process
+    dist.init_process_group(
+        backend='nccl', # faster GPU-GPU communication
+        init_method=f'tcp://{config[“master_addr”]}:{config[“master_port”]}',
+        world_size=config['world_size'],
+        rank=config['rank']
+    )
+    
+    # Optimization of communication buffers
+    os.environ['NCCL_IB_HCA']] = 'mlx5_0' # for InfiniBand networks
+    os.environ['NCCL_IB_TC'] = '106' # traffic priority
+    os.environ['NCCL_IB_SL'] = '3' # level of service
+    
+    # process pinning configuration
+    torch.cuda.set_device(config['local_rank'])
+```
+
+## 4 Monitoring and debugging
+
+### Performance monitoring system:
+
+``python
+class ClusterMonitor:
+    def __init__(self):
+        self.metrics = {
+            'gpu_utilization': [],
+            'memory_usage': [],
+            'network_bandwidth': [],
+            'throughput': []
+        }
+    
+    def collect_metrics(self):
+        ““”Collect performance metrics from nodes"”
+        gpu_stats = torch.cuda.get_device_properties(0)
+        self.metrics['gpu_utilization'].append(
+            self._get_gpu_utilization()
+        )
+        self.metrics['memory_usage'].append(
+            torch.cuda.memory_allocated() / torch.cuda.max_memory_allocated()
+        )
+        
+    def generate_report(self):
+        ““”Generate performance report"”
+        report = {
+            'avg_gpu_utilization': np.mean(self.metrics['gpu_utilization']),
+            'peak_memory_usage': max(self.metrics['memory_usage']),
+            'training_throughput': self._calculate_throughput()
+        }
+        return report
+```
+
+## 5 Examples of performance testing
+
+```python
+def run_scaling_test(config, nodes_range=[1, 2, 4, 8]):
+    ““”Scaling test on different number of nodes"”
+    results = {}
+    
+    for n_nodes in nodes_range:
+        config['nodes'] = n_nodes
+        trainer = DistributedTrainer(config)
+        
+        # Measurement of training time
+        start_time = time.time()
+        trainer.train_epoch()
+        end_time = time.time()
+        
+        results[n_nodes] = {
+            'time_per_epoch': end_time - start_time,
+            'throughput': trainer.get_throughput(),
+            'scaling_efficiency': calculate_scaling_efficiency(n_nodes)
+        }
+    
+    return results
+```
+
