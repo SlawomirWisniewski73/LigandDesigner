@@ -70,8 +70,10 @@ LigandDesigner/
 Ten projekt jest licencjonowany na zasadach MIT License. Szczegóły znajdziesz w pliku LICENSE.
 
 ## Powiązane publikacje
-1.
-2.
+1. https://doi.org/10.5281/zenodo.14512310
+2. https://biorxiv.org/cgi/content/short/2024.12.01.626243v1
+3. https://www.qeios.com/read/1CLGH0
+4. https://doi.org/10.6084/m9.figshare.28038599.v1
 
 ## ✉️ Kontakt
 
