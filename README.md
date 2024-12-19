@@ -1,6 +1,9 @@
 # LigandDesigner
 LigandDesigner: A machine learning-driven system for ligand design integrating pharmacophore modeling, generative models (GAN, LSTM), and molecular dynamics simulations. Includes versions for HomeLab (local) and HPC (high-performance computing).
 
+# Enjoyed? Support us: https://pay.vivawallet.com/scibiz
+
+
 # LigandDesigner
 
 LigandDesigner to zestaw narzędzi do **projektowania ligandów** opartych na technologiach **uczenia maszynowego** oraz **modelowania molekularnego**. System zawiera dwie wersje:
